@@ -80,11 +80,13 @@ impl std::error::Error for TaffyError {}
 pub(crate) struct TaffyConfig {
     /// Whether to round layout values
     pub(crate) use_rounding: bool,
+    /// Turns the handles of `calc()` values into lengths; `calc()` resolves to zero without one
+    pub(crate) calc_resolver: Option<fn(*const (), f32) -> f32>,
 }
 
 impl Default for TaffyConfig {
     fn default() -> Self {
-        Self { use_rounding: true }
+        Self { use_rounding: true, calc_resolver: None }
     }
 }
 
@@ -408,8 +410,8 @@ where
     }
 
     #[inline(always)]
-    fn resolve_calc_value(&self, _val: *const (), _basis: f32) -> f32 {
-        0.0
+    fn resolve_calc_value(&self, val: *const (), basis: f32) -> f32 {
+        self.taffy.config.calc_resolver.map_or(0.0, |resolve| resolve(val, basis))
     }
 
     #[inline(always)]
@@ -614,6 +616,11 @@ impl<NodeContext> TaffyTree<NodeContext> {
             node_context_data: SecondaryMap::with_capacity(capacity),
             config: TaffyConfig::default(),
         }
+    }
+
+    /// Sets the function that turns the handle of a `calc()` value and the size it is relative to into a length
+    pub fn set_calc_resolver(&mut self, resolver: fn(*const (), f32) -> f32) {
+        self.config.calc_resolver = Some(resolver);
     }
 
     /// Enable rounding of layout values. Rounding is enabled by default.
