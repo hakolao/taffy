@@ -296,7 +296,11 @@ where
             debug_log!("HIDDEN");
             // Hidden nodes lay out no out-of-flow boxes, so drop any list recorded while visible
             self.clear_hoisted_children(node_id);
-            return compute_hidden_layout(self, node_id);
+            let output = compute_hidden_layout(self, node_id);
+            // An out-of-flow box under a hidden ancestor is in no hoisted list, so `round_layout` never
+            // reaches it and its final layout would keep its last visible value
+            self.taffy.nodes[node_id.into()].final_layout = Layout::with_order(0);
+            return output;
         }
 
         // We run the following wrapped in "compute_cached_layout", which will check the cache for an entry matching the node and inputs and:
@@ -313,7 +317,11 @@ where
 
             // Dispatch to a layout algorithm based on the node's display style and whether the node has children or not.
             let mut output = match (display_mode, has_children) {
-                (Display::None, _) => compute_hidden_layout(tree, node_id),
+                (Display::None, _) => {
+                    let output = compute_hidden_layout(tree, node_id);
+                    tree.taffy.nodes[node_id.into()].final_layout = Layout::with_order(0);
+                    output
+                }
                 #[cfg(feature = "block_layout")]
                 (Display::Block, true) => compute_block_layout(tree, node_id, inputs, block_ctx),
                 #[cfg(feature = "block_layout")]
