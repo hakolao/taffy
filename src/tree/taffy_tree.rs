@@ -294,6 +294,8 @@ where
         // and thus that we should lay out this node using hidden layout regardless of it's own display style.
         if inputs.run_mode == RunMode::PerformHiddenLayout {
             debug_log!("HIDDEN");
+            // Hidden nodes lay out no out-of-flow boxes, so drop any list recorded while visible
+            self.clear_hoisted_children(node_id);
             return compute_hidden_layout(self, node_id);
         }
 
